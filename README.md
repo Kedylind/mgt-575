@@ -26,7 +26,7 @@ A React app that adds AI-generated narration to your videos. Upload a video, des
 
    ```env
    REACT_APP_OPENAI_API_KEY=your_openai_api_key
-   REACT_APP_MODEL=gpt-4o
+   REACT_APP_MODEL=gpt-5-nano
    ```
 
 3. **Run the app**
