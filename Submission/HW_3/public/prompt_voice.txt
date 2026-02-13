@@ -1,0 +1,39 @@
+You are choosing the best text-to-speech voice for a video narration.
+
+Consider the following:
+1) VOICE DESCRIPTIONS (each voice id and when to use it):
+{
+  "alloy": "Neutral and versatile; good for general content and tutorials.",
+  "ash": "Calm and soothing; good for relaxation and meditation content.",
+  "ballad": "Melodic and musical; good for artistic and creative content.",
+  "coral": "Bright and energetic; good for dynamic and upbeat content.",
+  "echo": "Deep and resonant; good for authoritative and documentary narration.",
+  "fable": "Warm and storytelling; good for narratives and audiobooks.",
+  "nova": "Friendly and approachable; good for casual and conversational content.",
+  "onyx": "Professional and clear; good for business and corporate content.",
+  "sage": "Intellectual and measured; good for educational and explanatory content.",
+  "shimmer": "Expressive and engaging; good for marketing and promotional content.",
+  "verse": "Artistic and lyrical; good for poetry and creative writing.",
+  "marin": "High-quality, natural tone; recommended for best overall quality.",
+  "cedar": "High-quality, warm depth; recommended for best overall quality."
+}
+
+2) NARRATION INSTRUCTIONS (what the user asked for):
+Create a narration for a commercial clip.
+
+3) PRODUCT SPEC / PDF CONTENT (if any):
+Product Specification: Bose Ultra Open Earbuds  Bose Audio Systems February 2026  Product Overview  Model:   Bose Ultra Open Earbuds  Rating:   ? ? ? ? ?   (4.3 / 5.0 based on 3,920 Reviews)  Design:   Cuff-like open-ear fit with OpenAudio technology.  Description  Ultra Open Earbuds feature a brilliant combination of innovative open-ear design, incredible audio, and all-day comfort. These earbuds leave your ears open to hear the world around you while projecting rich, private sound directly into the ear canal, keeping you engaged with your surroundings.  Key Features  •   Immersive Audio:   Spatialized sound that puts you in the center of the music.  •   OpenAudio Technology:   Delivers high-quality, private sound without blocking the ear.  •   SimpleSync:   Seamlessly pair with Bose smart soundbars and speakers.  •   Bluetooth Multipoint:   Connect to two devices simultaneously.  •   Durability:   Water-resistant design engineered to withstand splashes and drops.  Battery Life & Power  •   Play Time:   Up to 7 hours (4 hours with Immersive Audio).  •   Standby:   Up to 48 hours.  •   Charging Case:   Provides up to an extra 19.5 hours of battery life.  What’s in the Box  1. 2 Bose Ultra Open Earbuds 2. Charging case 3. USB-C (A to C) cable (12”) 4. Safety sheet  Note: Personalization is available via Adjustable EQ settings in the Bose app.  1
+
+4) THE GENERATED NARRATION TEXT (the actual script to be spoken):
+Discover the Bose Ultra Open Earbuds. Embrace the innovative open-ear design with OpenAudio technology, delivering immersive, spatial sound directly to you. Stay aware and connected with all-day comfort. Seamlessly pair with Bose devices using SimpleSync. Experience the world in rich, private sound. Durable and water-resistant, they are perfect for your active lifestyle. Bose Ultra Open Earbuds—listen effortlessly.
+
+5) The video frames have been provided as images so you can see the visual context.
+
+Choose the single best voice from the voice descriptions above for this narration. Explain your choice in a short paragraph (justification).
+
+Respond with valid JSON only, no other text or markdown. Use exactly these keys:
+"voice" : one of the voice ids from the descriptions (e.g. "nova", "alloy", "shimmer")
+"justification" : your short paragraph explaining why this voice fits best
+
+Example format:
+{"voice": "nova", "justification": "Your explanation here."}

@@ -1,0 +1,25 @@
+You are choosing the best text-to-speech voice for a video narration.
+
+Consider the following:
+1) VOICE DESCRIPTIONS (each voice id and when to use it):
+{voice_descriptions}
+
+2) NARRATION INSTRUCTIONS (what the user asked for):
+{instructions}
+
+3) PRODUCT SPEC / PDF CONTENT (if any):
+{pdf_content}
+
+4) THE GENERATED NARRATION TEXT (the actual script to be spoken):
+{narration_text}
+
+5) The video frames have been provided as images so you can see the visual context.
+
+Choose the single best voice from the voice descriptions above for this narration. Explain your choice in a short paragraph (justification).
+
+Respond with valid JSON only, no other text or markdown. Use exactly these keys:
+"voice" : one of the voice ids from the descriptions (e.g. "nova", "alloy", "shimmer")
+"justification" : your short paragraph explaining why this voice fits best
+
+Example format:
+{"voice": "nova", "justification": "Your explanation here."}

@@ -35,7 +35,7 @@ A React app that adds AI-generated narration to your videos. Upload a video, des
    npm start
    ```
 
-   Open [http://localhost:3000](http://localhost:3000).
+   Open [http://localhost:3000](http://localhost:3000). After generating narration or using the Magic Wand, use the **"Download prompt_*.txt"** buttons to save the filled prompts to your `public/` folder (replace the template files).
 
 ## Usage
 
