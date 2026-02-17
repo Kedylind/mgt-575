@@ -1,0 +1,81 @@
+These are 3 chronological snapshots (taken once every 5 seconds) of a person watching this Youtube video: 
+    title: 'Zootopia 2 | Trailer',
+    duration_seconds: '141',
+    description: 'Hopps & Wilde are BACK 🦊🐰
+Get ready for #Zootopia2, only in theaters November 26!
+
+After cracking the biggest case in Zootopia’s history, rookie cops Judy Hopps (voice of Ginnifer Goodwin) and Nick Wilde (voice of Jason Bateman) find their partnership isn’t as solid as they thought when Chief Bogo (voice of Idris Elba) orders them to join the Partners in Crisis counseling program. But it doesn’t take long for their partnership to be put to the ultimate test when they find themselves on the twisting trail of a mystery tied to the arrival of a venomous snake in the animal metropolis. The trailer, poster and trailer stills are now available to download and share.
+ 
+While “Zootopia 2” introduces Gary De’Snake (voice of Ke Huy Quan), Nibbles (voice of Fortune Feimster) and quokka therapist Dr. Fuzzby (voice of Quinta Brunson), the upcoming feature film also welcomes back a herd of characters who made their debut in the Oscar®-winning film “Zootopia.” “It’s been an absolute joy to reteam with so many actors who made the first film so special, and so exciting to expand the world with our phenomenal new cast members,” said director/writer Jared Bush (chief creative officer for Walt Disney Animation Studios). “I can’t wait for audiences to see what other surprises we have in store in this brand-new adventure.”
+
+See more from official Disney Animation:
+
+Instagram: https://www.instagram.com/disneyanimation/
+Facebook: https://www.facebook.com/DisneyAnimation
+X: https://twitter.com/disneyanimation
+
+Welcome to the official Walt Disney Animation Studios YouTube channel! There’s much from the archive that we want to share, while also giving you glimpses into our current studio--a dynamic place full of fresh voices and talent.',
+    transcript: 'Welcome to Partners in Crisis. I am your
+therapy animal, Dr. Fuzby. Greg, we
+talked about that. What are we making
+Marlin? Uncomfortable.
+Yes.
+And Francine Clark may be a mouse, but
+he is your partner first. And we have
+two new partners. Can you tell us about
+your journey to Dysfunction Junction?
+Well, we've been official partners for
+one week at the anniversary and we are
+functioning fine, better than fine, and
+we did sort of save the city. So, espe
+kind of seems like a huge
+misunderstanding.
+Notice how she answered first, did not
+allow her partner to speak, and taps her
+foot when she's suppressing discomfort.
+And observe the source of her discomfort
+represented by the disconnected
+affectation of her emotionally insecure
+partner. Oh,
+>> but for now we begin by greeting our
+teammate.
+>> Okay. Unfortunately, Karen has chosen to
+see Joel's smile as a sign of
+aggression. Hackles down. Karen. Karen.
+Hackles down. Someone get the hose.
+>> Bunny Fox. This is a make or break
+assignment. Fail and I will split you
+up.
+>> No snake has set foot in Zootopia in
+forever.
+>> Hops and wild.
+>> Wild and hops. The dream team.
+Sorry, Paul.
+>> 1 2 3 4
+right now.
+>> Stop in the name of the law. I'm really
+sorry.
+>> Stop pulling my ears. Stop pulling my
+ears. Don't ever pull a bunny's ears. I
+have to help my family. Cannonball.
+[Music]
+>> You know this is not your worst idea.
+>> Wow, that was almost a compliment.
+>> Your worst idea is what you did with
+your ears.
+Hey ho.'
+
+Figure out how much of the video the person watched, based on the number of images you receive.
+Then provide a response in the following format:
+
+Title: Response to 'Zootopia 2 | Trailer'\n
+Summary: provide a summary of the video and how long is in seconds. \n 
+Then summarize these properties of the person:
+- Completion percent: what percent of the video was watched (from duration_seconds and number of images)
+- Emotional reaction: (dominant emotions, changes over time)
+- Engagement level: (focused, distracted, bored, amused, etc.)  If they watched more of the video it means
+more engagement. If they only watched a short part, they didnt like it probably.
+- Notable moments: they exhibit (surprise, confusion, laughter, disengagement)
+  and what in the video may have triggered it 
+
+Keep your response concise and written in plain English.

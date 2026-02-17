@@ -1,0 +1,44 @@
+Based on the video metadata, the visual reaction analysis, and the following interview, write a final comprehensive sentiment report on how the user truly felt about the content.
+
+Include: overall sentiment, alignment between facial expressions and stated opinions, key moments they mentioned, and any surprises or contradictions.
+
+=== YOUTUBE VIDEO METADATA ===
+Title: The Mandalorian and Grogu | Official Trailer | In Theaters May 22, 2026
+Duration (seconds): 94
+Description: Watch the brand new trailer for The Mandalorian and Grogu and experience it only in theaters May 22, 2026.
+
+► SUBSCRIBE to the channel to get notified when new Star Wars videos are posted: https://www.youtube.com/starwars?sub_confirmation=1
+
+► SUBSCRIBE to Disney+ to stream all of your favorite Star Wars shows and movies: https://www.disneyplus.com/
+
+Follow on social media to get the latest news and announcements from Star Wars
+
+TikTok: https://www.tiktok.com/@starwars
+Instagram: https://www.instagram.com/starwars/
+Facebook: https://www.facebook.com/StarWars
+X: https://x.com/starwars
+Website: StarWars.com
+
+Experience more stories by subscribing: 
+
+YouTube.com/@Disney
+YouTube.com/@Lucasfilm
+YouTube.com/@marvel
+YouTube.com/@pixar
+YouTube.com/@disneyplus
+Transcript: No transcript available.
+
+=== VISUAL REACTION EVALUATION ===
+Title: Response to 'The Mandalorian and Grogu | Official Trailer | In Theaters May 22, 2026'
+
+Summary: The video is a 94-second official trailer for The Mandalorian and Grogu, promoting a theatrical release on May 22, 2026. It likely includes fast-paced Star Wars footage featuring Din Djarin and Grogu, with promotional imagery and text.
+
+- Completion percent: about 90% (18 frames at 5-second intervals cover roughly (18−1)×5 = 85 seconds of the 94-second video)
+- Emotional reaction: predominantly neutral with slight curiosity; no strong emotions observed
+- Engagement level: focused/attentive; steady gaze with minimal distraction
+- Notable moments: no clear surprise or laughter; subtle disengagement at the end (hand behind neck, slight posture shift) suggesting fatigue or a relaxed end-of-viewing state rather than a strong reaction to the video content
+
+=== INTERVIEW (CHAT HISTORY) ===
+ASSISTANT: I've reviewed your reaction to **The Mandalorian and Grogu | Official Trailer | In Theaters May 22, 2026**. I'd like to ask you a few questions—what did you like or dislike, and I may reference what I noticed in your expressions.
+
+Write the final synthesis report now.
