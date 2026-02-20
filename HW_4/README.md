@@ -49,3 +49,19 @@ npm run build
 ```
 
 The built app is in the `build` folder.
+
+## Deploy on Render
+
+HW_4 is a **static React app** (no Node server, no MongoDB). To deploy the **mgt-575** repo with HW_4 as the app:
+
+1. **New Web Service** → Connect **GitHub** → select repo **mgt-575**.
+2. **Root Directory:** `HW_4` (so Render runs all commands inside the HW_4 folder).
+3. **Build Command:** `npm install && npm run build`
+4. **Start Command:** `npx serve -s build`  
+   (serves the `build` folder; `-s` enables client-side routing for the React app.)
+5. **Environment** (Render → your service → **Environment**):  
+   - `REACT_APP_GEMINI_API_KEY` = your Gemini API key (required)  
+   - `REACT_APP_ELEVENLABS_API_KEY` = your ElevenLabs key (optional)  
+   - `REACT_APP_ELEVENLABS_VOICE_ID` = voice ID (optional)
+
+Do **not** use `node server/index.js` — there is no server in HW_4. After deploy, open the URL Render gives you.
