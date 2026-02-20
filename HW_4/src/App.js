@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { generateScenes, generateImage, generateTTS, fetchElevenLabsVoices } from './services/gemini';
+import { generateScenes, generateImage, generateTTS, fetchElevenLabsVoices, buildScriptContext, generateYouTubeThumbnail } from './services/gemini';
 import { assembleVideo } from './services/ffmpegService';
 import { createAssistantChat, sendAssistantMessage } from './services/apiService';
 import MovieInput from './components/MovieInput';
@@ -8,6 +8,7 @@ import AnimatedDots from './components/AnimatedDots';
 import SceneEditor from './components/SceneEditor';
 import VideoAssembly from './components/VideoAssembly';
 import ChatAssistant from './components/ChatAssistant';
+import YouTubeMetadata from './components/YouTubeMetadata';
 
 function getProjectName() {
   const now = new Date();
@@ -43,6 +44,9 @@ function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [youtubeTitle, setYoutubeTitle] = useState('');
+  const [youtubeDescription, setYoutubeDescription] = useState('');
+  const [youtubeThumbnailBlob, setYoutubeThumbnailBlob] = useState(null);
   const assistantChatRef = useRef(null);
 
   const handleGenerateScenes = useCallback(async () => {
@@ -127,6 +131,29 @@ function App() {
     setProjectName(getProjectName());
   }, []);
 
+  const handleTranslateNarrations = useCallback((args) => {
+    const arr = args?.translatedNarrations;
+    if (!Array.isArray(arr) || arr.length === 0) return;
+    setScenes((prev) =>
+      prev.map((s, i) => (i < arr.length ? { ...s, narration: arr[i] ?? s.narration } : s))
+    );
+  }, []);
+
+  const handleYouTubeTitle = useCallback((title) => setYoutubeTitle(title ?? ''), []);
+  const handleYouTubeDescription = useCallback((desc) => setYoutubeDescription(desc ?? ''), []);
+  const handleYouTubeThumbnailFromChat = useCallback(
+    async (args) => {
+      const scriptContext = buildScriptContext(scenes);
+      try {
+        const blob = await generateYouTubeThumbnail(scriptContext, anchorImages, imageModel, args?.imagePrompt);
+        setYoutubeThumbnailBlob(blob);
+      } catch (err) {
+        console.error('YouTube thumbnail from chat failed:', err);
+      }
+    },
+    [scenes, anchorImages, imageModel]
+  );
+
   const handleChatSend = useCallback(
     async (message) => {
       if (!message.trim()) return;
@@ -153,7 +180,13 @@ function App() {
             return next;
           });
         };
-        await sendAssistantMessage(chat, message, handleAssistantScript, anchorImages, onChunk);
+        const callbacks = {
+          onTranslateNarrations: handleTranslateNarrations,
+          onYouTubeTitle: handleYouTubeTitle,
+          onYouTubeDescription: handleYouTubeDescription,
+          onYouTubeThumbnail: handleYouTubeThumbnailFromChat,
+        };
+        await sendAssistantMessage(chat, message, handleAssistantScript, anchorImages, onChunk, scenes, callbacks);
       } catch (err) {
         console.error('[AI Reel Maker] Error:', err);
         setChatMessages((prev) => {
@@ -171,7 +204,7 @@ function App() {
         setChatLoading(false);
       }
     },
-    [handleAssistantScript, anchorImages]
+    [handleAssistantScript, anchorImages, scenes, handleTranslateNarrations, handleYouTubeTitle, handleYouTubeDescription, handleYouTubeThumbnailFromChat]
   );
 
   const handleAssemble = useCallback(async () => {
@@ -261,7 +294,22 @@ function App() {
             </section>
 
             <section className="mb-8 p-6 rounded-xl bg-slate-800/50 border border-slate-700">
-              <h2 className="text-lg font-semibold text-slate-200 mb-4">3. Video Generation</h2>
+              <h2 className="text-lg font-semibold text-slate-200 mb-4">3. YouTube Metadata</h2>
+              <YouTubeMetadata
+                scenes={scenes}
+                anchorImages={anchorImages}
+                title={youtubeTitle}
+                description={youtubeDescription}
+                thumbnailBlob={youtubeThumbnailBlob}
+                onTitleChange={setYoutubeTitle}
+                onDescriptionChange={setYoutubeDescription}
+                onThumbnailChange={setYoutubeThumbnailBlob}
+                defaultImageModel={imageModel}
+              />
+            </section>
+
+            <section className="mb-8 p-6 rounded-xl bg-slate-800/50 border border-slate-700">
+              <h2 className="text-lg font-semibold text-slate-200 mb-4">4. Video Generation</h2>
               <VideoAssembly
                 onAssemble={handleAssemble}
                 assembleProgress={assembleProgress}

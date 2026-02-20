@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { IMAGE_MODELS, GEMINI_TTS_VOICES } from '../services/gemini';
+import { IMAGE_MODELS, GEMINI_TTS_VOICES, translateNarrations } from '../services/gemini';
+import { TRANSLATION_LANGUAGES } from '../constants/languages';
 import AnimatedDots from './AnimatedDots';
 
 function AudioPlayer({ blob }) {
@@ -17,10 +18,53 @@ function AudioPlayer({ blob }) {
   return <audio src={url} controls className="w-48 h-8" />;
 }
 
+function SceneImage({ blob, alt, className, onClick }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    if (blob) {
+      const u = URL.createObjectURL(blob);
+      setUrl(u);
+      return () => URL.revokeObjectURL(u);
+    }
+    setUrl(null);
+  }, [blob]);
+  if (!blob) return null;
+  if (!url) return <div className={className || 'w-32 h-32 rounded bg-slate-700'} />;
+  return <img src={url} alt={alt || ''} className={className} onClick={onClick} />;
+}
+
 export default function SceneEditor({ scenes, onUpdate, imageModel, onImageModelChange, voiceProvider, onVoiceProviderChange, voice, onVoiceChange, elevenLabsVoices, elevenLabsVoiceId, onElevenLabsVoiceChange, onGenerateImage, onGenerateAudio, generating }) {
   const isGenerating = generating !== null;
   const [enlargedImage, setEnlargedImage] = useState(null);
   const [enlargedUrl, setEnlargedUrl] = useState(null);
+  const [translatedNarrations, setTranslatedNarrations] = useState([]);
+  const [showTranslatedNarrations, setShowTranslatedNarrations] = useState(false);
+  const [translationLoading, setTranslationLoading] = useState(false);
+  const [targetLanguageCode, setTargetLanguageCode] = useState(TRANSLATION_LANGUAGES[0]?.code ?? 'en');
+
+  useEffect(() => {
+    setTranslatedNarrations((prev) => (prev.length !== scenes.length ? [] : prev));
+  }, [scenes.length]);
+
+  const handleTranslate = async () => {
+    setTranslationLoading(true);
+    try {
+      const narrations = scenes.map((s) => s.narration ?? '');
+      const result = await translateNarrations(narrations, targetLanguageCode);
+      setTranslatedNarrations(result?.length ? result : []);
+      setShowTranslatedNarrations(true);
+    } catch (err) {
+      console.error('Translation failed:', err);
+    } finally {
+      setTranslationLoading(false);
+    }
+  };
+
+  const applyTranslationToScript = () => {
+    translatedNarrations.forEach((text, i) => {
+      if (i < scenes.length) onUpdate(i, 'narration', text ?? scenes[i].narration ?? '');
+    });
+  };
 
   useEffect(() => {
     if (enlargedImage) {
@@ -33,6 +77,55 @@ export default function SceneEditor({ scenes, onUpdate, imageModel, onImageModel
 
   return (
     <div className="overflow-x-auto">
+      <div className="mb-4 flex flex-wrap items-center gap-4 p-3 rounded-lg bg-slate-800/50 border border-slate-600">
+        <span className="text-slate-400 text-sm">Translation:</span>
+        <select
+          value={targetLanguageCode}
+          onChange={(e) => setTargetLanguageCode(e.target.value)}
+          className="px-2 py-1 rounded bg-slate-700 border border-slate-600 text-slate-200 text-sm"
+        >
+          {TRANSLATION_LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code}>{l.label} ({l.continent})</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={handleTranslate}
+          disabled={translationLoading || !scenes.length}
+          className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm font-medium"
+        >
+          {translationLoading ? <AnimatedDots prefix="Translating" /> : 'Translate'}
+        </button>
+        {translatedNarrations.length > 0 && (
+          <>
+            <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
+              <input
+                type="radio"
+                name="narrationView"
+                checked={!showTranslatedNarrations}
+                onChange={() => setShowTranslatedNarrations(false)}
+              />
+              Original
+            </label>
+            <label className="flex items-center gap-2 text-slate-300 text-sm cursor-pointer">
+              <input
+                type="radio"
+                name="narrationView"
+                checked={showTranslatedNarrations}
+                onChange={() => setShowTranslatedNarrations(true)}
+              />
+              Translated
+            </label>
+            <button
+              type="button"
+              onClick={applyTranslationToScript}
+              className="px-2 py-1 rounded bg-slate-600 hover:bg-slate-500 text-slate-200 text-sm"
+            >
+              Apply translation to script
+            </button>
+          </>
+        )}
+      </div>
       <table className="w-full text-sm text-left">
         <thead>
           <tr className="border-b border-slate-600 text-slate-400">
@@ -57,8 +150,19 @@ export default function SceneEditor({ scenes, onUpdate, imageModel, onImageModel
               </td>
               <td className="py-2 px-2">
                 <textarea
-                  value={scene.narration}
-                  onChange={(e) => onUpdate(i, 'narration', e.target.value)}
+                  value={showTranslatedNarrations && translatedNarrations[i] !== undefined ? translatedNarrations[i] : scene.narration}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (showTranslatedNarrations && translatedNarrations[i] !== undefined) {
+                      setTranslatedNarrations((prev) => {
+                        const next = [...prev];
+                        next[i] = val;
+                        return next;
+                      });
+                    } else {
+                      onUpdate(i, 'narration', val);
+                    }
+                  }}
                   className="w-full min-w-[200px] px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-200 text-xs resize-y min-h-[80px]"
                   rows={4}
                 />
@@ -71,7 +175,10 @@ export default function SceneEditor({ scenes, onUpdate, imageModel, onImageModel
                       onClick={() => setEnlargedImage(scene.imageBlob)}
                       className="block w-full text-left"
                     >
-                      <img src={URL.createObjectURL(scene.imageBlob)} alt="" className="w-32 h-32 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity" />
+                      <SceneImage
+                        blob={scene.imageBlob}
+                        className="w-32 h-32 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity"
+                      />
                     </button>
                   ) : (
                     <div className="w-32 h-32 rounded bg-slate-700 flex items-center justify-center text-slate-500 text-xs">No image</div>

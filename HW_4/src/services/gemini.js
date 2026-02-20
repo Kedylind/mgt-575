@@ -57,6 +57,115 @@ export async function generateScenes(movieIdea) {
 }
 
 /**
+ * Translate an array of narration strings to the target language.
+ * @param {string[]} narrationsArray - Narrations in scene order
+ * @param {string} targetLanguageCode - e.g. "es", "fr", "zh"
+ * @returns {Promise<string[]>} - Translated strings, same order and length
+ */
+export async function translateNarrations(narrationsArray, targetLanguageCode) {
+  if (!ai) throw new Error('API key not configured');
+  if (!narrationsArray?.length) return [];
+  const lang = targetLanguageCode || 'es';
+  const list = narrationsArray.map((t, i) => `[${i + 1}] ${(t || '').trim() || '(empty)'}`).join('\n');
+  const prompt = `Translate the following narration lines to the language with code "${lang}". Keep the same number of lines in the same order. Preserve any TTS tags in square brackets (e.g. [excited], [whispering]) and only translate the spoken text. Return ONLY a JSON array of strings, one per line, no other text. Example: ["Translated line 1", "Translated line 2"]\n\nNarrations:\n${list}`;
+  const response = await ai.models.generateContent({
+    model: MODELS.text,
+    contents: [{ parts: [{ text: prompt }] }],
+  });
+  const text = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!text) throw new Error('No response from Gemini');
+  const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+  const parsed = JSON.parse(cleaned);
+  const arr = Array.isArray(parsed) ? parsed : [parsed];
+  return narrationsArray.map((_, i) => (typeof arr[i] === 'string' ? arr[i] : arr[i]?.toString?.() ?? '') || '');
+}
+
+/**
+ * Build script context string from scenes for YouTube title/description/thumbnail.
+ * @param {Array<{sceneNumber: number, description: string, narration: string}>} scenes
+ * @returns {string}
+ */
+export function buildScriptContext(scenes) {
+  if (!scenes?.length) return '';
+  return scenes
+    .map(
+      (s) =>
+        `Scene ${s.sceneNumber ?? '?'}: Description: ${(s.description ?? '').trim() || '(none)'}. Narration: ${(s.narration ?? '').trim() || '(none)'}`
+    )
+    .join('\n\n');
+}
+
+/**
+ * Generate a YouTube title from script and optional anchor images.
+ * @param {string} scriptContext - Formatted script text
+ * @param {Array<Blob|null>} [anchorImages] - Optional [image1, image2, image3]
+ * @returns {Promise<string>}
+ */
+export async function generateYouTubeTitle(scriptContext, anchorImages = []) {
+  if (!ai) throw new Error('API key not configured');
+  const parts = await buildContentParts(
+    `Generate a single catchy YouTube video title (under 100 characters) for this video. Use only the title, no quotes or explanation.\n\nScript:\n${scriptContext || '(no script)'}`,
+    anchorImages
+  );
+  const response = await ai.models.generateContent({
+    model: MODELS.text,
+    contents: [{ parts }],
+  });
+  const text = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  return (text || '').replace(/^["']|["']$/g, '').trim() || 'Untitled';
+}
+
+/**
+ * Generate a YouTube description from script and optional anchor images.
+ * @param {string} scriptContext - Formatted script text
+ * @param {Array<Blob|null>} [anchorImages] - Optional
+ * @returns {Promise<string>}
+ */
+export async function generateYouTubeDescription(scriptContext, anchorImages = []) {
+  if (!ai) throw new Error('API key not configured');
+  const parts = await buildContentParts(
+    `Write a short YouTube video description (1-2 paragraphs) for this video. Use only the description text, no meta labels.\n\nScript:\n${scriptContext || '(no script)'}`,
+    anchorImages
+  );
+  const response = await ai.models.generateContent({
+    model: MODELS.text,
+    contents: [{ parts }],
+  });
+  const text = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  return text || '';
+}
+
+/**
+ * Generate a YouTube thumbnail image from script and optional anchor images.
+ * @param {string} scriptContext - Formatted script text
+ * @param {Array<Blob|null>} [anchorImages] - Optional
+ * @param {string} [modelId] - Image model (default IMAGE_MODELS[0].id)
+ * @param {string} [promptOverride] - Optional full prompt override (e.g. from chat)
+ * @returns {Promise<Blob>}
+ */
+export async function generateYouTubeThumbnail(scriptContext, anchorImages = [], modelId, promptOverride) {
+  if (!ai) throw new Error('API key not configured');
+  const prompt = promptOverride?.trim() || `Create a compelling YouTube thumbnail image that represents this video. Style: bold, eye-catching, suitable for a thumbnail. Do not include text or titles in the image.\n\nVideo content:\n${scriptContext || '(no script)'}`;
+  return generateImage(prompt, anchorImages, modelId || MODELS.image);
+}
+
+async function buildContentParts(text, anchorImages) {
+  const parts = [{ text }];
+  const hasImages = anchorImages?.some((img) => img != null);
+  if (hasImages) {
+    for (let i = 0; i < 3; i++) {
+      const img = anchorImages[i];
+      if (img) {
+        const base64 = await blobToBase64(img);
+        const mime = img.type || 'image/png';
+        parts.push({ inlineData: { mimeType: mime, data: base64 } });
+      }
+    }
+  }
+  return parts;
+}
+
+/**
  * Generate an image from a description using Imagen/Gemini image model.
  *
  * PROMPT CONSTRUCTION:
