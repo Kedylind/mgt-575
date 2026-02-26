@@ -3,7 +3,6 @@ const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
-const FormData = require('form-data');
 
 const app = express();
 app.use(cors());
@@ -157,13 +156,13 @@ app.patch('/api/sessions/:id/title', async (req, res) => {
   }
 });
 
-// ── Image generation ─────────────────────────────────────────────────────────
+// ── Image generation (Gemini — uses same API key as chat) ──────────────────────
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
 app.post('/api/generate-image', async (req, res) => {
-  if (!OPENAI_API_KEY) {
-    return res.status(503).json({ error: 'Image generation not configured (set OPENAI_API_KEY)' });
+  if (!GEMINI_API_KEY) {
+    return res.status(503).json({ error: 'Image generation not configured (set REACT_APP_GEMINI_API_KEY or GEMINI_API_KEY)' });
   }
   try {
     const body = req.body || {};
@@ -171,35 +170,51 @@ app.post('/api/generate-image', async (req, res) => {
     const imageBase64 = body.imageBase64 || body.image;
     const mimeType = body.mimeType || 'image/png';
     if (!prompt) return res.status(400).json({ error: 'prompt required' });
-    if (!imageBase64) return res.status(400).json({ error: 'anchor image (imageBase64) required' });
 
-    const imageBuffer = Buffer.from(imageBase64, 'base64');
-    const form = new FormData();
-    form.append('image', imageBuffer, { filename: 'image.png', contentType: mimeType });
-    form.append('prompt', prompt);
-    form.append('n', '1');
-    form.append('size', '1024x1024');
-
-    const formBuffer = form.getBuffer();
-    const openaiRes = await fetch('https://api.openai.com/v1/images/edits', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, ...form.getHeaders() },
-      body: formBuffer,
+    const parts = [];
+    if (imageBase64) {
+      parts.push({
+        inlineData: {
+          mimeType: mimeType || 'image/png',
+          data: imageBase64,
+        },
+      });
+    }
+    parts.push({
+      text: `Edit or transform this image according to the following instruction. If no image is provided, generate a new image. Instruction: ${prompt}`,
     });
 
-    const data = await openaiRes.json();
+    const payload = {
+      contents: [{ role: 'user', parts }],
+      generationConfig: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        responseMimeType: 'image/png',
+      },
+    };
+
+    const model = 'gemini-2.0-flash-exp-image-generation';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+    const genRes = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await genRes.json();
     if (data.error) {
-      return res.status(openaiRes.status).json({ error: data.error.message || 'OpenAI error' });
+      return res.status(genRes.status).json({ error: data.error.message || 'Gemini image generation failed' });
     }
-    const url = data.data?.[0]?.url;
-    const b64 = data.data?.[0]?.b64_json;
-    if (b64) return res.json({ imageBase64: b64, mimeType: 'image/png' });
-    if (url) {
-      const imgRes = await fetch(url);
-      const buf = Buffer.from(await imgRes.arrayBuffer());
-      return res.json({ imageBase64: buf.toString('base64'), mimeType: 'image/png' });
+
+    const candidate = data.candidates?.[0];
+    const content = candidate?.content?.parts || [];
+    const imagePart = content.find((p) => p.inlineData && p.inlineData.data);
+    if (imagePart?.inlineData?.data) {
+      return res.json({
+        imageBase64: imagePart.inlineData.data,
+        mimeType: imagePart.inlineData.mimeType || 'image/png',
+      });
     }
-    return res.status(500).json({ error: 'No image in response' });
+    return res.status(500).json({ error: 'No image in response. The model may not support image generation in this region or the request was blocked.' });
   } catch (err) {
     console.error('[generate-image]', err);
     res.status(500).json({ error: err.message || 'Image generation failed' });
