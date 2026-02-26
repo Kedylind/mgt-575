@@ -5,3 +5,44 @@
 .App {
   min-height: 100vh;
 }
+
+.app-tabs {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #0f0f23;
+}
+
+.app-tab-bar {
+  display: flex;
+  gap: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-tab-bar button {
+  padding: 0.75rem 1.25rem;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.app-tab-bar button:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.app-tab-bar button.active {
+  color: #fff;
+  font-weight: 600;
+  border-bottom: 2px solid #6366f1;
+  margin-bottom: -1px;
+}
+
+.app-tabs .chat-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}

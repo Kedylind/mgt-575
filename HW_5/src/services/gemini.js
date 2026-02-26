@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CSV_TOOL_DECLARATIONS } from './csvTools';
+import { YOUTUBE_TOOL_DECLARATIONS } from './chatTools';
 
 const genAI = new GoogleGenerativeAI(process.env.REACT_APP_GEMINI_API_KEY || '');
 
@@ -12,15 +13,26 @@ export const CODE_KEYWORDS = /\b(plot|chart|graph|analyz|statistic|regression|co
 
 let cachedPrompt = null;
 
-async function loadSystemPrompt() {
-  if (cachedPrompt) return cachedPrompt;
-  try {
-    const res = await fetch('/prompt_chat.txt');
-    cachedPrompt = res.ok ? (await res.text()).trim() : '';
-  } catch {
-    cachedPrompt = '';
+async function loadSystemPrompt(userNameContext = null) {
+  let base = cachedPrompt;
+  if (!base) {
+    try {
+      const res = await fetch('/prompt_chat.txt');
+      base = res.ok ? (await res.text()).trim() : '';
+      cachedPrompt = base;
+    } catch {
+      base = '';
+      cachedPrompt = '';
+    }
   }
-  return cachedPrompt;
+  if (userNameContext?.firstName != null || userNameContext?.lastName != null) {
+    const first = userNameContext.firstName ?? '';
+    const last = userNameContext.lastName ?? '';
+    const name = [first, last].filter(Boolean).join(' ').trim();
+    if (name)
+      base += `\n\nThe current user is ${name}. In your first response, greet them by name (e.g. Hi ${first || name}).`;
+  }
+  return base;
 }
 
 // Yields:
@@ -33,8 +45,8 @@ async function loadSystemPrompt() {
 // useCodeExecution: pass true to use codeExecution tool (CSV/analysis),
 //                   false (default) to use googleSearch tool.
 // Note: Gemini does not support both tools simultaneously.
-export const streamChat = async function* (history, newMessage, imageParts = [], useCodeExecution = false) {
-  const systemInstruction = await loadSystemPrompt();
+export const streamChat = async function* (history, newMessage, imageParts = [], useCodeExecution = false, userNameContext = null) {
+  const systemInstruction = await loadSystemPrompt(userNameContext);
   const tools = useCodeExecution ? [CODE_EXEC_TOOL] : [SEARCH_TOOL];
   const model = genAI.getGenerativeModel({
     model: MODEL,
@@ -128,8 +140,8 @@ export const streamChat = async function* (history, newMessage, imageParts = [],
 // executeFn(toolName, args) → plain JS object with the result
 // Returns the final text response from the model.
 
-export const chatWithCsvTools = async (history, newMessage, csvHeaders, executeFn) => {
-  const systemInstruction = await loadSystemPrompt();
+export const chatWithCsvTools = async (history, newMessage, csvHeaders, executeFn, userNameContext = null) => {
+  const systemInstruction = await loadSystemPrompt(userNameContext);
   const model = genAI.getGenerativeModel({
     model: MODEL,
     tools: [{ functionDeclarations: CSV_TOOL_DECLARATIONS }],
@@ -182,6 +194,64 @@ export const chatWithCsvTools = async (history, newMessage, csvHeaders, executeF
     if (toolResult?._chartType) {
       charts.push(toolResult);
     }
+
+    response = (
+      await chat.sendMessage([
+        { functionResponse: { name, response: { result: toolResult } } },
+      ])
+    ).response;
+  }
+
+  return { text: response.text(), charts, toolCalls };
+};
+
+// ── Unified function-calling (CSV + YouTube tools) ─────────────────────────────
+// executeFn(toolName, args) may return a Promise (e.g. for generateImage).
+export const ALL_TOOL_DECLARATIONS = [...CSV_TOOL_DECLARATIONS, ...YOUTUBE_TOOL_DECLARATIONS];
+
+export const chatWithUnifiedTools = async (history, newMessage, executeFn, userNameContext = null) => {
+  const systemInstruction = await loadSystemPrompt(userNameContext);
+  const model = genAI.getGenerativeModel({
+    model: MODEL,
+    tools: [{ functionDeclarations: ALL_TOOL_DECLARATIONS }],
+  });
+
+  const baseHistory = history.map((m) => ({
+    role: m.role === 'user' ? 'user' : 'model',
+    parts: [{ text: m.content || '' }],
+  }));
+
+  const chatHistory = systemInstruction
+    ? [
+        {
+          role: 'user',
+          parts: [{ text: `Follow these instructions in every response:\n\n${systemInstruction}` }],
+        },
+        { role: 'model', parts: [{ text: "Got it! I'll follow those instructions." }] },
+        ...baseHistory,
+      ]
+    : baseHistory;
+
+  const chat = model.startChat({ history: chatHistory });
+
+  let response = (await chat.sendMessage(newMessage)).response;
+
+  const charts = [];
+  const toolCalls = [];
+
+  for (let round = 0; round < 8; round++) {
+    const parts = response.candidates?.[0]?.content?.parts || [];
+    const funcCall = parts.find((p) => p.functionCall);
+    if (!funcCall) break;
+
+    const { name, args } = funcCall.functionCall;
+    console.log('[Unified Tool]', name, args);
+    const toolResult = await Promise.resolve(executeFn(name, args || {}));
+    console.log('[Unified Tool result]', toolResult);
+
+    toolCalls.push({ name, args, result: toolResult });
+
+    if (toolResult?._chartType) charts.push(toolResult);
 
     response = (
       await chat.sendMessage([

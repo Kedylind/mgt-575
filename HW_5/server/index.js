@@ -3,6 +3,7 @@ const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
+const FormData = require('form-data');
 
 const app = express();
 app.use(cors());
@@ -47,17 +48,21 @@ app.get('/api/status', async (req, res) => {
 
 app.post('/api/users', async (req, res) => {
   try {
-    const { username, password, email } = req.body;
+    const { username, password, email, firstName, lastName } = req.body;
     if (!username || !password)
       return res.status(400).json({ error: 'Username and password required' });
     const name = String(username).trim().toLowerCase();
     const existing = await db.collection('users').findOne({ username: name });
     if (existing) return res.status(400).json({ error: 'Username already exists' });
+    const first = firstName != null ? String(firstName).trim().slice(0, 100) : '';
+    const last = lastName != null ? String(lastName).trim().slice(0, 100) : '';
     const hashed = await bcrypt.hash(password, 10);
     await db.collection('users').insertOne({
       username: name,
       password: hashed,
       email: email ? String(email).trim().toLowerCase() : null,
+      firstName: first,
+      lastName: last,
       createdAt: new Date().toISOString(),
     });
     res.json({ ok: true });
@@ -76,7 +81,12 @@ app.post('/api/users/login', async (req, res) => {
     if (!user) return res.status(401).json({ error: 'User not found' });
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(401).json({ error: 'Invalid password' });
-    res.json({ ok: true, username: name });
+    res.json({
+      ok: true,
+      username: name,
+      firstName: user.firstName ?? '',
+      lastName: user.lastName ?? '',
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -144,6 +154,166 @@ app.patch('/api/sessions/:id/title', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Image generation ─────────────────────────────────────────────────────────
+
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+app.post('/api/generate-image', async (req, res) => {
+  if (!OPENAI_API_KEY) {
+    return res.status(503).json({ error: 'Image generation not configured (set OPENAI_API_KEY)' });
+  }
+  try {
+    const body = req.body || {};
+    const prompt = (body.prompt || '').trim();
+    const imageBase64 = body.imageBase64 || body.image;
+    const mimeType = body.mimeType || 'image/png';
+    if (!prompt) return res.status(400).json({ error: 'prompt required' });
+    if (!imageBase64) return res.status(400).json({ error: 'anchor image (imageBase64) required' });
+
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
+    const form = new FormData();
+    form.append('image', imageBuffer, { filename: 'image.png', contentType: mimeType });
+    form.append('prompt', prompt);
+    form.append('n', '1');
+    form.append('size', '1024x1024');
+
+    const formBuffer = form.getBuffer();
+    const openaiRes = await fetch('https://api.openai.com/v1/images/edits', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, ...form.getHeaders() },
+      body: formBuffer,
+    });
+
+    const data = await openaiRes.json();
+    if (data.error) {
+      return res.status(openaiRes.status).json({ error: data.error.message || 'OpenAI error' });
+    }
+    const url = data.data?.[0]?.url;
+    const b64 = data.data?.[0]?.b64_json;
+    if (b64) return res.json({ imageBase64: b64, mimeType: 'image/png' });
+    if (url) {
+      const imgRes = await fetch(url);
+      const buf = Buffer.from(await imgRes.arrayBuffer());
+      return res.json({ imageBase64: buf.toString('base64'), mimeType: 'image/png' });
+    }
+    return res.status(500).json({ error: 'No image in response' });
+  } catch (err) {
+    console.error('[generate-image]', err);
+    res.status(500).json({ error: err.message || 'Image generation failed' });
+  }
+});
+
+// ── YouTube Channel Data ─────────────────────────────────────────────────────
+
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || process.env.REACT_APP_YOUTUBE_API_KEY;
+
+function parseChannelInput(input) {
+  const s = (input || '').trim();
+  const channelIdMatch = s.match(/^(UC[\w-]{22})$/);
+  if (channelIdMatch) return { type: 'id', value: channelIdMatch[1] };
+  const urlMatch = s.match(/(?:youtube\.com\/channel\/)(UC[\w-]{22})/i);
+  if (urlMatch) return { type: 'id', value: urlMatch[1] };
+  const handleMatch = s.match(/(?:youtube\.com\/@|^@?)([\w.-]+)/i);
+  if (handleMatch) return { type: 'handle', value: handleMatch[1].startsWith('@') ? handleMatch[1] : `@${handleMatch[1]}` };
+  return null;
+}
+
+app.get('/api/youtube/channel', async (req, res) => {
+  if (!YOUTUBE_API_KEY) {
+    return res.status(503).json({ error: 'YouTube API key not configured (YOUTUBE_API_KEY)' });
+  }
+  try {
+    const channelUrl = (req.query.channelUrl || req.query.channel || '').trim();
+    const maxVideos = Math.min(100, Math.max(1, parseInt(req.query.maxVideos || '10', 10) || 10));
+    const parsed = parseChannelInput(channelUrl);
+    if (!parsed) {
+      return res.status(400).json({ error: 'Invalid channel URL or ID. Use e.g. https://www.youtube.com/@veritasium or a channel ID.' });
+    }
+
+    let channelId, channelTitle;
+    const base = 'https://www.googleapis.com/youtube/v3';
+
+    if (parsed.type === 'id') {
+      const r = await fetch(
+        `${base}/channels?part=snippet,contentDetails&id=${parsed.value}&key=${YOUTUBE_API_KEY}`
+      );
+      const data = await r.json();
+      const ch = data.items?.[0];
+      if (!ch) return res.status(404).json({ error: 'Channel not found' });
+      channelId = ch.id;
+      channelTitle = ch.snippet?.title || '';
+    } else {
+      const r = await fetch(
+        `${base}/channels?part=snippet,contentDetails&forHandle=${encodeURIComponent(parsed.value)}&key=${YOUTUBE_API_KEY}`
+      );
+      const data = await r.json();
+      const ch = data.items?.[0];
+      if (!ch) return res.status(404).json({ error: 'Channel not found for handle: ' + parsed.value });
+      channelId = ch.id;
+      channelTitle = ch.snippet?.title || '';
+    }
+
+    const uploadsPlaylistId = (await (async () => {
+      const r = await fetch(
+        `${base}/channels?part=contentDetails&id=${channelId}&key=${YOUTUBE_API_KEY}`
+      );
+      const d = await r.json();
+      return d.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+    })());
+    if (!uploadsPlaylistId) {
+      return res.status(404).json({ error: 'Uploads playlist not found' });
+    }
+
+    const videoIds = [];
+    let nextPageToken = '';
+    while (videoIds.length < maxVideos) {
+      const r = await fetch(
+        `${base}/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=${Math.min(50, maxVideos - videoIds.length)}${nextPageToken ? `&pageToken=${nextPageToken}` : ''}&key=${YOUTUBE_API_KEY}`
+      );
+      const data = await r.json();
+      const items = data.items || [];
+      for (const it of items) {
+        if (it.contentDetails?.videoId) videoIds.push(it.contentDetails.videoId);
+      }
+      nextPageToken = data.nextPageToken || '';
+      if (!nextPageToken || items.length === 0) break;
+    }
+    const limited = videoIds.slice(0, maxVideos);
+
+    const videos = [];
+    for (let i = 0; i < limited.length; i += 50) {
+      const batch = limited.slice(i, i + 50);
+      const r = await fetch(
+        `${base}/videos?part=snippet,contentDetails,statistics&id=${batch.join(',')}&key=${YOUTUBE_API_KEY}`
+      );
+      const data = await r.json();
+      for (const v of data.items || []) {
+        const vid = v.id;
+        const sn = v.snippet || {};
+        const stat = v.statistics || {};
+        const dur = v.contentDetails?.duration || '';
+        videos.push({
+          videoId: vid,
+          title: sn.title || '',
+          description: (sn.description || '').slice(0, 500),
+          publishedAt: sn.publishedAt || '',
+          duration: dur,
+          viewCount: parseInt(stat.viewCount || '0', 10),
+          likeCount: parseInt(stat.likeCount || '0', 10),
+          commentCount: parseInt(stat.commentCount || '0', 10),
+          url: `https://www.youtube.com/watch?v=${vid}`,
+          thumbnailUrl: sn.thumbnails?.maxres?.url || sn.thumbnails?.high?.url || sn.thumbnails?.default?.url || `https://img.youtube.com/vi/${vid}/mqdefault.jpg`,
+        });
+      }
+    }
+
+    res.json({ channelId, channelTitle, videos });
+  } catch (err) {
+    console.error('[YouTube]', err);
+    res.status(500).json({ error: err.message || 'YouTube API error' });
   }
 });
 

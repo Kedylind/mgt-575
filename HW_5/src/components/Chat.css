@@ -975,3 +975,186 @@
 .chat-empty-state p {
   margin: 0;
 }
+
+/* ── Video card (play_video tool) ───────────────────────────────────────── */
+
+.video-card {
+  margin: 0.75rem 0;
+  max-width: 320px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+}
+
+.video-card:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.02);
+}
+
+.video-card-thumb {
+  aspect-ratio: 16/9;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.video-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-card-info {
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.video-card-title {
+  display: block;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.video-card-play {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Generated image (generateImage tool) ────────────────────────────────── */
+
+.generated-image-wrap {
+  margin: 0.75rem 0;
+}
+
+.generated-image {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.generated-image:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.generated-image-actions {
+  margin-top: 0.4rem;
+}
+
+.generated-image-download {
+  font-size: 0.85rem;
+  color: #818cf8;
+  text-decoration: none;
+}
+
+.generated-image-download:hover {
+  text-decoration: underline;
+}
+
+/* ── Lightbox ────────────────────────────────────────────────────────────── */
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 2rem;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 1.5rem;
+  line-height: 1;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.lightbox-img {
+  max-width: 95vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+/* Metric vs time chart (in-chat) ─────────────────────────────────────────── */
+
+.metric-vs-time-chart {
+  margin: 1rem 0 0.4rem;
+  padding: 1rem 0.5rem 0.5rem;
+}
+
+.metric-vs-time-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0 0 0.6rem 0.5rem;
+}
+
+.metric-vs-time-click-wrap {
+  cursor: pointer;
+}
+
+.metric-vs-time-actions {
+  margin-top: 0.5rem;
+}
+
+.metric-vs-time-download-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+}
+
+.metric-vs-time-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  padding: 2rem;
+}
+
+.metric-vs-time-lightbox-inner {
+  position: relative;
+  background: rgba(20, 20, 40, 0.95);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.metric-vs-time-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 1.25rem;
+  cursor: pointer;
+  border-radius: 6px;
+}
