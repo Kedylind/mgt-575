@@ -192,7 +192,7 @@ app.post('/api/generate-image', async (req, res) => {
       },
     };
 
-    const model = 'gemini-2.0-flash-exp-image-generation';
+    const model = 'gemini-2.5-flash';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
     const genRes = await fetch(url, {
       method: 'POST',
