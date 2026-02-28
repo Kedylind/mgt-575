@@ -4,7 +4,8 @@ import { YOUTUBE_TOOL_DECLARATIONS } from './chatTools';
 
 const genAI = new GoogleGenerativeAI(process.env.REACT_APP_GEMINI_API_KEY || '');
 
-const MODEL = 'gemini-2.5-flash';
+// Best available: Gemini 2.5 Pro for complex chat, reasoning, tools, and code
+const MODEL = 'gemini-2.5-pro';
 
 const SEARCH_TOOL = { googleSearch: {} };
 const CODE_EXEC_TOOL = { codeExecution: {} };
@@ -209,7 +210,7 @@ export const chatWithCsvTools = async (history, newMessage, csvHeaders, executeF
 // executeFn(toolName, args) may return a Promise (e.g. for generateImage).
 export const ALL_TOOL_DECLARATIONS = [...CSV_TOOL_DECLARATIONS, ...YOUTUBE_TOOL_DECLARATIONS];
 
-export const chatWithUnifiedTools = async (history, newMessage, executeFn, userNameContext = null) => {
+export const chatWithUnifiedTools = async (history, newMessage, executeFn, userNameContext = null, imageParts = []) => {
   const systemInstruction = await loadSystemPrompt(userNameContext);
   const model = genAI.getGenerativeModel({
     model: MODEL,
@@ -234,7 +235,17 @@ export const chatWithUnifiedTools = async (history, newMessage, executeFn, userN
 
   const chat = model.startChat({ history: chatHistory });
 
-  let response = (await chat.sendMessage(newMessage)).response;
+  // Include image attachments so the model can see them and call generateImage when appropriate
+  const userMessageParts = imageParts.length > 0
+    ? [
+        { text: newMessage },
+        ...imageParts.map((img) => ({
+          inlineData: { mimeType: img.mimeType || 'image/png', data: img.data },
+        })),
+      ]
+    : newMessage;
+
+  let response = (await chat.sendMessage(userMessageParts)).response;
 
   const charts = [];
   const toolCalls = [];
@@ -253,9 +264,15 @@ export const chatWithUnifiedTools = async (history, newMessage, executeFn, userN
 
     if (toolResult?._chartType) charts.push(toolResult);
 
+    // Send a small summary to Gemini for generateImage so the API doesn't reject huge base64 payloads
+    const responsePayload =
+      toolResult?._generatedImage != null
+        ? { success: true, message: 'Image generated and displayed to the user.' }
+        : toolResult;
+
     response = (
       await chat.sendMessage([
-        { functionResponse: { name, response: { result: toolResult } } },
+        { functionResponse: { name, response: { result: responsePayload } } },
       ])
     ).response;
   }

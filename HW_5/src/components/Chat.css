@@ -976,6 +976,17 @@
   margin: 0;
 }
 
+/* ── Tool result media (video card, generated image) ─────────────────────── */
+
+.tool-result-media {
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.video-card-wrap .video-card {
+  margin: 0;
+}
+
 /* ── Video card (play_video tool) ───────────────────────────────────────── */
 
 .video-card {

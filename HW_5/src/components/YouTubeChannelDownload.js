@@ -49,7 +49,7 @@ export default function YouTubeChannelDownload() {
     <div className="youtube-download">
       <div className="youtube-download-card">
         <h1 className="youtube-download-title">YouTube Channel Download</h1>
-        <p className="youtube-download-subtitle">Fetch channel metadata and video stats as JSON</p>
+        <p className="youtube-download-subtitle">Fetch channel metadata and video list as JSON (no API key required)</p>
 
         <div className="youtube-download-form">
           <label>
@@ -59,6 +59,7 @@ export default function YouTubeChannelDownload() {
               placeholder="https://www.youtube.com/@veritasium"
               value={channelUrl}
               onChange={(e) => setChannelUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleDownload())}
               disabled={loading}
             />
           </label>
@@ -70,14 +71,19 @@ export default function YouTubeChannelDownload() {
               max={100}
               value={maxVideos}
               onChange={(e) => setMaxVideos(parseInt(e.target.value, 10) || 10)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleDownload())}
               disabled={loading}
             />
           </label>
           <button
             type="button"
             className="youtube-download-btn"
-            onClick={handleDownload}
             disabled={loading}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleDownload();
+            }}
           >
             {loading ? 'Downloading…' : 'Download Channel Data'}
           </button>

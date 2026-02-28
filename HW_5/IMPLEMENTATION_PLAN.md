@@ -15,6 +15,16 @@ This document is a detailed, agent-ready plan to add all required features to th
 
 Use this plan as a step-by-step checklist for the next agent (or developer). Each section maps to a grading component and includes files to touch and concrete implementation steps.
 
+### Environment (.env)
+
+**Use only these environment variables** (no additional API keys):
+
+- `REACT_APP_GEMINI_API_KEY` — Gemini (chat and image generation).
+- `REACT_APP_MONGODB_URI` — MongoDB connection.
+- `REACT_APP_API_URL` — Backend API base URL (e.g. `http://localhost:3001` locally or your deployed server).
+
+Do **not** introduce `YOUTUBE_API_KEY` or `OPENAI_API_KEY`. The plan below is written to work with only these three.
+
 ---
 
 ## 1. Chat Personalization (10 pts)
@@ -66,44 +76,34 @@ Use this plan as a step-by-step checklist for the next agent (or developer). Eac
 
 ## 2. YouTube Channel Data Download Tab (20 pts)
 
-**Requirement:** A tab "YouTube Channel Download" with URL input, max videos input (default 10, max 100), Download button, progress bar, and ability to download the resulting JSON. Also: download 10 videos from `https://www.youtube.com/@veritasium` and save the JSON in `public/` so the grader can verify.
+**Requirement:** A tab "YouTube Channel Download" with URL input, max videos input (default 10, max 100), Download button, progress bar, and ability to download the resulting JSON. Also: have 10 videos from `https://www.youtube.com/@veritasium` saved as JSON in `public/` so the grader can verify. **No YouTube API key** — use only existing env vars.
 
-### 2.1 Backend: YouTube Data Fetching
+### 2.1 Backend: No API Key
 
-- **Approach:** YouTube Data API v3 is the standard way. You will need an API key (create in Google Cloud Console, enable YouTube Data API v3). Alternatively, a server-side scraper could be used (higher risk of breakage; not recommended for grading).
-- **File: `server/index.js`** (or a new `server/youtube.js` required from `index.js`)
-  - Add an endpoint, e.g. **GET or POST `/api/youtube/channel`** (or `/api/youtube/download`), that:
-    - Accepts `channelUrl` (or channel ID) and `maxVideos` (default 10, cap 100).
-    - Resolves the channel ID from the URL if needed (e.g. `@veritasium` → channel ID via API).
-    - Uses the YouTube Data API to:
-      - Get uploads playlist ID for the channel.
-      - Get video IDs from the playlist (up to `maxVideos`).
-      - For each video: get snippet + contentDetails + statistics (title, description, publishedAt, duration, viewCount, likeCount, commentCount, video URL). Optionally add transcript if you use a transcript API (e.g. YouTube Transcript API or similar) — assignment says "transcript (if available)".
-    - Returns a JSON array of video objects. Structure example: `{ channelId, channelTitle, videos: [ { videoId, title, description, publishedAt, duration, viewCount, likeCount, commentCount, url } ] }`.
-  - Use environment variable for the YouTube API key (e.g. `YOUTUBE_API_KEY` or `REACT_APP_YOUTUBE_API_KEY` if the client must pass it; prefer server-only key).
-  - **Progress:** Progress bar is easiest implemented on the client by polling or by a streaming/SSE endpoint. Simpler approach: server does the full fetch and returns when done; client shows an indeterminate or step-based progress (e.g. "Fetching channel…", "Fetching videos 1–10…") or a single progress value if you add a simple progress callback (e.g. WebSocket or SSE sending progress 0–100). Alternatively, implement a **streaming endpoint** that sends progress events (e.g. "10", "20", … "100") so the client can update a progress bar.
+- **Constraint:** Do not use `YOUTUBE_API_KEY`. Implement using one of:
+  - **Static sample:** Serve or return the pre-built `public/veritasium-channel-10.json` when the user requests a download (e.g. when URL matches Veritasium or as a "demo" response). The tab still has URL input, max videos, progress bar, and download — the backend returns the static file or a truncated copy up to `maxVideos`.
+  - **No-key library:** Use an npm package that fetches YouTube channel/video metadata without an API key (e.g. scrapers or unofficial APIs). Implement a **GET or POST `/api/youtube/channel`** (or `/api/youtube/download`)** that accepts `channelUrl` and `maxVideos`, calls that library or scraper on the server, and returns JSON in the shape: `{ channelId, channelTitle, videos: [ { videoId, title, description, publishedAt, duration, viewCount, likeCount, commentCount, url } ] }`. Transcript is optional ("if available").
+- **File: `server/index.js`** (or `server/youtube.js`)
+  - Add the chosen endpoint. No env var for YouTube.
+  - **Progress:** Client shows a progress bar (indeterminate or step-based) while the request is in flight; optionally the server can stream progress (e.g. SSE) for a determinate bar.
 
 ### 2.2 Frontend: New Tab and Page
 
 - **File: `src/App.js`**
-  - After login, show a tab bar or navigation: e.g. "Chat" and "YouTube Channel Download". Use state like `activeTab: 'chat' | 'youtube'` and render either `<Chat ... />` or `<YouTubeChannelDownload ... />`.
+  - After login, show a tab bar: e.g. "Chat" and "YouTube Channel Download". Use state like `activeTab: 'chat' | 'youtube'` and render either `<Chat ... />` or `<YouTubeChannelDownload ... />`.
 
 - **New file: `src/components/YouTubeChannelDownload.js`** (or `YouTubeChannelDownload.jsx`)
-  - UI:
-    - Input: "Channel URL" (e.g. `https://www.youtube.com/@veritasium`).
-    - Input: "Max videos" (number, default 10, max 100).
-    - Button: "Download Channel Data".
-  - On submit: call the backend endpoint with channel URL and max videos. While waiting, show a **progress bar** (either determinate from server progress or indeterminate/spinner).
-  - On success: store the JSON in component state (and optionally in a ref or global state so it can be referenced for "download file").
-  - **Download JSON**: Provide a button or link to download the current result as a file (e.g. `data.json` or `channel-data.json`). Use a blob + temporary anchor with `download` attribute, or a data URL.
-  - Optional: show a short preview (e.g. first 3 video titles) and the count of videos.
+  - UI: Input "Channel URL", input "Max videos" (default 10, max 100), button "Download Channel Data".
+  - On submit: call the backend with channel URL and max videos; show a **progress bar** while waiting.
+  - On success: store the JSON in state; provide a **Download JSON** button (blob + anchor or data URL).
+  - Optional: preview (e.g. first 3 titles) and video count.
 
 ### 2.3 Pre-downloaded Sample for Grader
 
-- **File: `public/veritasium-channel-10.json`** (or similar name)
-  - Run the download once for `https://www.youtube.com/@veritasium` with max 10 videos. Save the response JSON into this file in `public/`. This proves the feature works and gives the grader a ready-made file. Document in README or in the plan that this file is the expected output of the download feature.
+- **File: `public/veritasium-channel-10.json`**
+  - Must exist with 10 videos from Veritasium (structure: title, description, duration, release date, view count, like count, comment count, video URL, and transcript if available). Create it once by running your download flow (static or no-key) for `https://www.youtube.com/@veritasium` and saving the result here, or by hand. Document that this file is the expected output of the download feature.
 
-**Verification:** Open "YouTube Channel Download" tab, enter @veritasium URL and 10 videos, click download, see progress bar, then download the JSON. Confirm `public/veritasium-channel-10.json` exists and has the required fields.
+**Verification:** Open "YouTube Channel Download" tab, enter @veritasium URL and 10 videos, click download, see progress bar, then download the JSON. Confirm `public/veritasium-channel-10.json` exists with the required fields.
 
 ---
 
@@ -140,13 +140,14 @@ Use this plan as a step-by-step checklist for the next agent (or developer). Eac
 
 ## 4. Chat Tool: `generateImage` (10 pts)
 
-**Requirement:** Image generation from a text prompt and an anchor image; display in chat with download and lightbox on click. Described in `prompt_chat.txt`.
+**Requirement:** Image generation from a text prompt and an anchor image; display in chat with download and lightbox on click. Described in `prompt_chat.txt`. **Use only Gemini** — no additional API keys (no OpenAI, etc.).
 
-### 4.1 Backend / API for Image Generation
+### 4.1 Image Generation: Gemini Only
 
-- **Option A — Gemini Imagen:** If using Gemini’s image generation (e.g. `gemini-2.0-flash-exp` or a model with imagen), the generation can be done from the **client** via the same Gemini SDK (if the key is on the client) or from the **server** to keep the key server-side. The assignment says "based on a text prompt and an anchor image" — so the flow is: user provides text prompt + one image; the model generates a new image. Check current Gemini API for "edit image" or "generate image from prompt + reference image" and implement one endpoint or one client call that returns the generated image bytes (or base64).
-- **Option B — External service:** Use an external image-generation API (e.g. DALL·E, Stability, Replicate) with prompt + reference image. Then the server would need to call that API and return the image to the client.
-- **Implementation:** Prefer doing this via a **server route** (e.g. POST `/api/generate-image`) that accepts `{ prompt, imageBase64, mimeType }`, calls the chosen image API, and returns the generated image (e.g. base64 or URL). This keeps API keys off the client.
+- **Constraint:** Use only `REACT_APP_GEMINI_API_KEY`. No `OPENAI_API_KEY` or other image APIs.
+- **Approach:** Use Gemini’s image-generation or image-editing capability (e.g. a model that supports image output or “edit from prompt + reference image”). Check the current Gemini API (e.g. `@google/generative-ai`) for image generation/editing with prompt + anchor image. Implementation can be:
+  - **Client:** Call Gemini from the client (key already in env as `REACT_APP_GEMINI_API_KEY`) with prompt + anchor image, receive generated image (base64 or blob), then display and pass result back into the tool response.
+  - **Server:** Optional server route (e.g. POST `/api/generate-image`) that accepts `{ prompt, imageBase64, mimeType }`, uses the same Gemini key (passed via server env, e.g. from `REACT_APP_GEMINI_API_KEY` or a server-side copy), and returns the generated image (e.g. base64). Server must get the Gemini key from existing env only.
 
 ### 4.2 Tool Declaration and Execution
 
@@ -155,15 +156,15 @@ Use this plan as a step-by-step checklist for the next agent (or developer). Eac
     - `prompt` (string): text description for generation.
     - `anchorImage` (or handled implicitly): in practice the "anchor image" is the image the user attached to the message. So the tool might only take `prompt` and the runtime passes the attached image from the current message.
   - The actual execution can be:
-    - **Server:** Client sends the tool call (prompt + anchor image) to the server; server calls the image API and returns the generated image to the client.
-    - **Client:** If using Gemini from the client, after receiving a `functionCall` for `generateImage`, the client sends the prompt and the anchor image to the server (or Gemini) and gets back the image, then displays it and returns the result (e.g. image URL or "Image generated and displayed") to the model in a function response.
+    - **Server:** Client sends the tool call (prompt + anchor image) to the server; server uses Gemini (same key as chat) to generate the image and returns it (e.g. base64) to the client.
+    - **Client:** After receiving a `functionCall` for `generateImage`, the client calls Gemini (or the server endpoint) with prompt + anchor image, gets back the image, displays it, and returns a function response (e.g. "Image generated and displayed") to the model.
 
 ### 4.3 Chat UI: Tool Choice and Routing
 
 - **File: `src/services/gemini.js`**
   - You will need a **unified chat path** that can use both CSV-style tools and the new YouTube tools. Options:
     - **Single tool list:** Add `generateImage`, `plot_metric_vs_time`, `play_video`, `compute_stats_json` to a shared `FUNCTION_DECLARATIONS` array and use one `chatWithTools(history, message, executeFn)` that supports both CSV and YouTube tools. The `executeFn` on the client will route by tool name to the right implementation (e.g. call `/api/generate-image` for `generateImage`, or run local logic for stats/plot/play_video).
-  - Ensure when the user has attached an image and asks to "generate an image" or similar, the model can call `generateImage` with the prompt and the anchor image is available (e.g. in the message parts or in context).
+  - Ensure when the user has attached an image and asks to "generate an image" or similar, the model can call `generateImage` with the prompt and the anchor image is available (e.g. in the message parts or in context). Use only the existing Gemini key for any server-side image generation call.
 
 ### 4.4 Display, Download, and Lightbox
 
@@ -305,7 +306,7 @@ Use this plan as a step-by-step checklist for the next agent (or developer). Eac
 5. **compute_stats_json** (Section 7) — Easiest tool; declare, implement, wire to session JSON, add to prompt.
 6. **play_video** (Section 6) — Declare, implement selector logic, VideoCard UI.
 7. **plot_metric_vs_time** (Section 5) — Declare, implement, MetricVsTimeChart component, enlarge/download.
-8. **generateImage** (Section 4) — API choice, server route, tool declaration, Chat display + download + lightbox.
+8. **generateImage** (Section 4) — Gemini only (no extra keys), tool declaration, Chat display + download + lightbox.
 9. **Unified tool routing in Gemini** — Ensure one chat path uses all tools (CSV tools can remain for CSV; when JSON is loaded, use the new tools). Function-calling loop in `gemini.js` (or a new `chatWithYouTubeTools`) that includes all four tool declarations and routes execution to the right place (client-side for stats/plot/play_video; server for generateImage if applicable).
 
 ---
@@ -316,7 +317,7 @@ Use this plan as a step-by-step checklist for the next agent (or developer). Eac
 |------|------------------|------------------|
 | Auth & user | — | `server/index.js`, `src/components/Auth.js`, `src/services/mongoApi.js`, `src/App.js` |
 | Chat context / name | — | `src/components/Chat.js`, `src/services/gemini.js` (if injecting name into prompt) |
-| YouTube tab | `src/components/YouTubeChannelDownload.js` | `src/App.js`, `server/index.js` (YouTube API) |
+| YouTube tab | `src/components/YouTubeChannelDownload.js` | `src/App.js`, `server/index.js` (no YouTube API key; static sample or no-key lib) |
 | Sample data | `public/veritasium-channel-10.json` | — |
 | JSON input | — | `src/components/Chat.js`, `public/prompt_chat.txt` |
 | Tools | `src/services/chatTools.js`, `src/components/MetricVsTimeChart.js`, optional `VideoCard.js` | `src/services/gemini.js`, `src/components/Chat.js` |

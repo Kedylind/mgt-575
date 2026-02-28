@@ -13,7 +13,20 @@ function App() {
       return null;
     }
   });
-  const [activeTab, setActiveTab] = useState('chat');
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      return sessionStorage.getItem('chatapp_tab') || 'chat';
+    } catch {
+      return 'chat';
+    }
+  });
+
+  const setActiveTabAndPersist = (tab) => {
+    setActiveTab(tab);
+    try {
+      sessionStorage.setItem('chatapp_tab', tab);
+    } catch (_) {}
+  };
 
   const handleLogin = (userData) => {
     const toStore = typeof userData === 'string'
@@ -35,14 +48,14 @@ function App() {
           <button
             type="button"
             className={activeTab === 'chat' ? 'active' : ''}
-            onClick={() => setActiveTab('chat')}
+            onClick={() => setActiveTabAndPersist('chat')}
           >
             Chat
           </button>
           <button
             type="button"
             className={activeTab === 'youtube' ? 'active' : ''}
-            onClick={() => setActiveTab('youtube')}
+            onClick={() => setActiveTabAndPersist('youtube')}
           >
             YouTube Channel Download
           </button>

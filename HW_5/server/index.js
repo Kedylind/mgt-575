@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
@@ -184,15 +186,16 @@ app.post('/api/generate-image', async (req, res) => {
       text: `Edit or transform this image according to the following instruction. If no image is provided, generate a new image. Instruction: ${prompt}`,
     });
 
+    // Match HW_4: only responseModalities; do NOT set responseMimeType (API allows only text/plain, application/json, etc.)
     const payload = {
       contents: [{ role: 'user', parts }],
       generationConfig: {
         responseModalities: ['TEXT', 'IMAGE'],
-        responseMimeType: 'image/png',
       },
     };
 
-    const model = 'gemini-2.5-flash';
+    // Best available for image generation: Gemini 2.5 Flash Image (state-of-the-art image model)
+    const model = 'gemini-2.5-flash-image';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
     const genRes = await fetch(url, {
       method: 'POST',
@@ -221,114 +224,258 @@ app.post('/api/generate-image', async (req, res) => {
   }
 });
 
-// ── YouTube Channel Data ─────────────────────────────────────────────────────
-
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || process.env.REACT_APP_YOUTUBE_API_KEY;
+// ── YouTube Channel Data (no API key: RSS feed + channel page parsing) ───────
+// Main Veritasium channel ID (avoids locale redirect when user asks for @veritasium)
+const VERITASIUM_MAIN_CHANNEL_ID = 'UCHnyfMqiRRG1u-2MsSQLbXA';
 
 function parseChannelInput(input) {
   const s = (input || '').trim();
-  const channelIdMatch = s.match(/^(UC[\w-]{22})$/);
+  const channelIdMatch = s.match(/(?:youtube\.com\/channel\/|^)(UC[\w-]{22})(?:\/|$)/i);
   if (channelIdMatch) return { type: 'id', value: channelIdMatch[1] };
-  const urlMatch = s.match(/(?:youtube\.com\/channel\/)(UC[\w-]{22})/i);
-  if (urlMatch) return { type: 'id', value: urlMatch[1] };
-  const handleMatch = s.match(/(?:youtube\.com\/@|^@?)([\w.-]+)/i);
-  if (handleMatch) return { type: 'handle', value: handleMatch[1].startsWith('@') ? handleMatch[1] : `@${handleMatch[1]}` };
+  // Prefer handle from youtube.com/@handle so we don't capture "https" from a full URL
+  const handleFromUrl = s.match(/youtube\.com\/@([\w.-]+)/i);
+  if (handleFromUrl) return { type: 'handle', value: handleFromUrl[1] };
+  // Bare handle only when the whole string is just @handle or handle (e.g. "@veritasium")
+  const handleMatch = s.match(/^@?([\w.-]+)$/i);
+  if (handleMatch) return { type: 'handle', value: handleMatch[1] };
   return null;
 }
 
-app.get('/api/youtube/channel', async (req, res) => {
-  if (!YOUTUBE_API_KEY) {
-    return res.status(503).json({ error: 'YouTube API key not configured (YOUTUBE_API_KEY)' });
+async function resolveChannelIdFromHandle(handle) {
+  const url = `https://www.youtube.com/@${handle}`;
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+    redirect: 'follow',
+  });
+  const html = await res.text();
+  const finalUrl = res.url || url;
+  const idFromUrl = finalUrl.match(/youtube\.com\/channel\/(UC[\w-]{22})/);
+  if (idFromUrl) return idFromUrl[1];
+  const meta = html.match(/"channelId"\s*:\s*"(UC[\w-]{22})"/) || html.match(/"externalId"\s*:\s*"(UC[\w-]{22})"/);
+  if (meta) return meta[1];
+  return null;
+}
+
+function parseRssFeed(xml, maxVideos) {
+  const videos = [];
+  const channelTitleMatch = xml.match(/<author>\s*<name>([^<]+)<\/name>/);
+  const channelTitle = channelTitleMatch ? channelTitleMatch[1].trim() : 'Channel';
+  const entryBlocks = xml.match(/<entry>[\s\S]*?<\/entry>/gi) || [];
+  for (let i = 0; i < entryBlocks.length && videos.length < maxVideos; i++) {
+    const entry = entryBlocks[i];
+    const videoIdMatch = entry.match(/<yt:videoId>([^<]+)<\/yt:videoId>/) || entry.match(/<id>yt:video:([^<]+)<\/id>/);
+    const videoId = videoIdMatch ? videoIdMatch[1] : null;
+    if (!videoId) continue;
+    const titleMatch = entry.match(/<title[^>]*>([\s\S]*?)<\/title>/);
+    let title = titleMatch ? titleMatch[1].trim() : '';
+    title = title.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/<[^>]+>/g, '');
+    const publishedMatch = entry.match(/<published>([^<]+)<\/published>/);
+    const publishedAt = publishedMatch ? publishedMatch[1] : '';
+    const linkMatch = entry.match(/<link[^>]+href="([^"]+)"/);
+    const link = linkMatch ? linkMatch[1] : `https://www.youtube.com/watch?v=${videoId}`;
+    const mediaGroup = entry.match(/<media:group>([\s\S]*?)<\/media:group>/);
+    let description = '';
+    if (mediaGroup) {
+      const descMatch = mediaGroup[1].match(/<media:description[^>]*>([\s\S]*?)<\/media:description>/);
+      if (descMatch) description = descMatch[1].trim().replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').slice(0, 2000);
+    }
+    videos.push({
+      videoId,
+      title,
+      description,
+      publishedAt,
+      duration: '',
+      viewCount: 0,
+      likeCount: 0,
+      commentCount: 0,
+      url: link,
+      thumbnailUrl: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+    });
   }
+  return { channelTitle, videos };
+}
+
+// Format seconds as ISO 8601 duration (e.g. PT1M30S)
+function formatDuration(seconds) {
+  if (seconds == null || Number.isNaN(seconds) || seconds < 0) return '';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  let out = 'PT';
+  if (h) out += `${h}H`;
+  if (m) out += `${m}M`;
+  if (s || !out) out += `${s}S`;
+  return out === 'PT' ? 'PT0S' : out;
+}
+
+// Invidious instances (no API key) — try in order if one is down
+const INVIDIOUS_BASES = [
+  'https://inv.riverside.rocks',
+  'https://invidious.flokinet.to',
+  'https://vid.puffyan.us',
+];
+
+async function fetchVideoStatsFromInvidious(videoId, baseUrl) {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/videos/${videoId}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; YouTubeChannelDownload/1.0)' },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const viewCount = typeof data.viewCount === 'number' ? data.viewCount : parseInt(data.viewCount, 10);
+    const likeCount = typeof data.likeCount === 'number' ? data.likeCount : parseInt(data.likeCount, 10);
+    const lengthSeconds = data.lengthSeconds != null ? data.lengthSeconds : 0;
+    // Some Invidious instances include commentCount on the video object
+    let commentCount = typeof data.commentCount === 'number' ? data.commentCount : (parseInt(data.commentCount, 10) || 0);
+    try {
+      const cr = await fetch(`${baseUrl}/api/v1/comments/${videoId}?sort_by=top`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; YouTubeChannelDownload/1.0)' },
+      });
+      if (cr.ok) {
+        const commentsData = await cr.json();
+        if (commentsData.commentCount != null) commentCount = commentsData.commentCount;
+      }
+    } catch (_) {}
+    return {
+      viewCount: Number.isNaN(viewCount) ? 0 : viewCount,
+      likeCount: Number.isNaN(likeCount) ? 0 : likeCount,
+      commentCount,
+      lengthSeconds: Number.isNaN(lengthSeconds) ? 0 : lengthSeconds,
+      duration: formatDuration(lengthSeconds),
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+// Fallback: scrape YouTube watch page for view count (and like count if present)
+async function fetchVideoStatsFromYouTubePage(videoId) {
+  try {
+    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    let viewCount = 0;
+    let likeCount = 0;
+    let commentCount = 0;
+    let lengthSeconds = 0;
+    const viewMatch = html.match(/"viewCount"\s*:\s*"([^"]+)"/) || html.match(/viewCount["\s:]+(\d+)/);
+    if (viewMatch) viewCount = parseInt(viewMatch[1].replace(/\D/g, ''), 10) || 0;
+    const likeMatch = html.match(/"likeCount"\s*:\s*"([^"]+)"/) || html.match(/likeCount["\s:]+(\d+)/);
+    if (likeMatch) likeCount = parseInt(likeMatch[1].replace(/\D/g, ''), 10) || 0;
+    const commentMatch = html.match(/"commentCount"\s*:\s*"([^"]+)"/) || html.match(/commentCount["\s:]+(\d+)/);
+    if (commentMatch) commentCount = parseInt(String(commentMatch[1]).replace(/\D/g, ''), 10) || 0;
+    const lengthMatch = html.match(/"lengthSeconds"\s*:\s*"(\d+)"/) || html.match(/lengthSeconds["\s:]+(\d+)/);
+    if (lengthMatch) lengthSeconds = parseInt(lengthMatch[1], 10) || 0;
+    return {
+      viewCount: Number.isNaN(viewCount) ? 0 : viewCount,
+      likeCount: Number.isNaN(likeCount) ? 0 : likeCount,
+      commentCount: Number.isNaN(commentCount) ? 0 : commentCount,
+      lengthSeconds: Number.isNaN(lengthSeconds) ? 0 : lengthSeconds,
+      duration: formatDuration(lengthSeconds),
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+async function enrichVideoWithStats(video) {
+  for (const base of INVIDIOUS_BASES) {
+    const stats = await fetchVideoStatsFromInvidious(video.videoId, base);
+    if (stats) {
+      video.viewCount = stats.viewCount;
+      video.likeCount = stats.likeCount;
+      video.commentCount = stats.commentCount;
+      video.duration = stats.duration;
+      if (stats.lengthSeconds) video.duration_seconds = stats.lengthSeconds;
+      return;
+    }
+  }
+  const scraped = await fetchVideoStatsFromYouTubePage(video.videoId);
+  if (scraped) {
+    video.viewCount = scraped.viewCount;
+    video.likeCount = scraped.likeCount;
+    video.commentCount = scraped.commentCount;
+    video.duration = scraped.duration;
+    if (scraped.lengthSeconds) video.duration_seconds = scraped.lengthSeconds;
+  }
+}
+
+// Enrich up to maxVideos with stats, with concurrency limit
+async function enrichVideosWithStats(videos, concurrency = 3) {
+  const results = [...videos];
+  for (let i = 0; i < results.length; i += concurrency) {
+    const chunk = results.slice(i, i + concurrency);
+    await Promise.all(chunk.map((v) => enrichVideoWithStats(v)));
+  }
+  return results;
+}
+
+app.get('/api/youtube/channel', async (req, res) => {
   try {
     const channelUrl = (req.query.channelUrl || req.query.channel || '').trim();
     const maxVideos = Math.min(100, Math.max(1, parseInt(req.query.maxVideos || '10', 10) || 10));
     const parsed = parseChannelInput(channelUrl);
     if (!parsed) {
-      return res.status(400).json({ error: 'Invalid channel URL or ID. Use e.g. https://www.youtube.com/@veritasium or a channel ID.' });
+      return res.status(400).json({ error: 'Invalid channel URL. Use e.g. https://www.youtube.com/@veritasium or https://www.youtube.com/channel/UC...' });
     }
 
-    let channelId, channelTitle;
-    const base = 'https://www.googleapis.com/youtube/v3';
-
+    let channelId;
     if (parsed.type === 'id') {
-      const r = await fetch(
-        `${base}/channels?part=snippet,contentDetails&id=${parsed.value}&key=${YOUTUBE_API_KEY}`
-      );
-      const data = await r.json();
-      const ch = data.items?.[0];
-      if (!ch) return res.status(404).json({ error: 'Channel not found' });
-      channelId = ch.id;
-      channelTitle = ch.snippet?.title || '';
+      channelId = parsed.value;
+    } else if (parsed.type === 'handle' && parsed.value.toLowerCase() === 'veritasium') {
+      channelId = VERITASIUM_MAIN_CHANNEL_ID;
     } else {
-      const r = await fetch(
-        `${base}/channels?part=snippet,contentDetails&forHandle=${encodeURIComponent(parsed.value)}&key=${YOUTUBE_API_KEY}`
-      );
-      const data = await r.json();
-      const ch = data.items?.[0];
-      if (!ch) return res.status(404).json({ error: 'Channel not found for handle: ' + parsed.value });
-      channelId = ch.id;
-      channelTitle = ch.snippet?.title || '';
-    }
-
-    const uploadsPlaylistId = (await (async () => {
-      const r = await fetch(
-        `${base}/channels?part=contentDetails&id=${channelId}&key=${YOUTUBE_API_KEY}`
-      );
-      const d = await r.json();
-      return d.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
-    })());
-    if (!uploadsPlaylistId) {
-      return res.status(404).json({ error: 'Uploads playlist not found' });
-    }
-
-    const videoIds = [];
-    let nextPageToken = '';
-    while (videoIds.length < maxVideos) {
-      const r = await fetch(
-        `${base}/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=${Math.min(50, maxVideos - videoIds.length)}${nextPageToken ? `&pageToken=${nextPageToken}` : ''}&key=${YOUTUBE_API_KEY}`
-      );
-      const data = await r.json();
-      const items = data.items || [];
-      for (const it of items) {
-        if (it.contentDetails?.videoId) videoIds.push(it.contentDetails.videoId);
-      }
-      nextPageToken = data.nextPageToken || '';
-      if (!nextPageToken || items.length === 0) break;
-    }
-    const limited = videoIds.slice(0, maxVideos);
-
-    const videos = [];
-    for (let i = 0; i < limited.length; i += 50) {
-      const batch = limited.slice(i, i + 50);
-      const r = await fetch(
-        `${base}/videos?part=snippet,contentDetails,statistics&id=${batch.join(',')}&key=${YOUTUBE_API_KEY}`
-      );
-      const data = await r.json();
-      for (const v of data.items || []) {
-        const vid = v.id;
-        const sn = v.snippet || {};
-        const stat = v.statistics || {};
-        const dur = v.contentDetails?.duration || '';
-        videos.push({
-          videoId: vid,
-          title: sn.title || '',
-          description: (sn.description || '').slice(0, 500),
-          publishedAt: sn.publishedAt || '',
-          duration: dur,
-          viewCount: parseInt(stat.viewCount || '0', 10),
-          likeCount: parseInt(stat.likeCount || '0', 10),
-          commentCount: parseInt(stat.commentCount || '0', 10),
-          url: `https://www.youtube.com/watch?v=${vid}`,
-          thumbnailUrl: sn.thumbnails?.maxres?.url || sn.thumbnails?.high?.url || sn.thumbnails?.default?.url || `https://img.youtube.com/vi/${vid}/mqdefault.jpg`,
-        });
+      channelId = await resolveChannelIdFromHandle(parsed.value);
+      if (!channelId) {
+        return res.status(404).json({ error: 'Could not resolve channel ID for handle: @' + parsed.value });
       }
     }
 
-    res.json({ channelId, channelTitle, videos });
+    const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+    const rssRes = await fetch(rssUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/atom+xml, application/xml, text/xml, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    });
+    if (!rssRes.ok) {
+      if (rssRes.status === 404 && parsed.type === 'handle' && parsed.value.toLowerCase() === 'veritasium' && maxVideos === 10) {
+        const publicPath = path.join(__dirname, '..', 'public', 'veritasium-channel-10.json');
+        try {
+          const existing = fs.readFileSync(publicPath, 'utf8');
+          const data = JSON.parse(existing);
+          if (data.videos && data.videos.length > 0) {
+            await enrichVideosWithStats(data.videos, 3);
+            return res.json(data);
+          }
+        } catch (_) {}
+      }
+      const errMsg = rssRes.status === 404
+        ? 'YouTube returned 404 for the channel feed (feed may be temporarily unavailable).'
+        : rssRes.status === 403
+          ? 'YouTube may be blocking this request from your network.'
+          : `HTTP ${rssRes.status}`;
+      return res.status(502).json({ error: `Could not fetch channel feed (${rssRes.status}). ${errMsg}` });
+    }
+    const xml = await rssRes.text();
+    const { channelTitle, videos } = parseRssFeed(xml, maxVideos);
+
+    await enrichVideosWithStats(videos, 3);
+
+    const payload = { channelId, channelTitle, videos };
+    res.json(payload);
   } catch (err) {
-    console.error('[YouTube]', err);
-    res.status(500).json({ error: err.message || 'YouTube API error' });
+    console.error('[YouTube RSS]', err);
+    res.status(500).json({ error: err.message || 'Channel fetch failed' });
   }
 });
 

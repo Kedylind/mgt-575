@@ -382,17 +382,18 @@ export default function Chat({ user, onLogout }) {
     // PYTHON_ONLY = things the client tools genuinely cannot produce
     const PYTHON_ONLY_KEYWORDS = /\b(regression|scatter|histogram|seaborn|matplotlib|numpy|time.?series|heatmap|box.?plot|violin|distribut|linear.?model|logistic|forecast|trend.?line)\b/i;
     const wantPythonOnly = PYTHON_ONLY_KEYWORDS.test(text);
-    const wantCode = CODE_KEYWORDS.test(text) && !sessionCsvRows;
+    // When channel JSON is loaded, use unified tools (plot_metric_vs_time) instead of code execution
+    const wantCode = CODE_KEYWORDS.test(text) && !sessionCsvRows && !sessionJsonData;
     const capturedCsv = csvContext;
     const capturedJson = jsonContext;
     // Base64 is only worth sending when Gemini will actually run Python
     const needsBase64 = !!capturedCsv && wantPythonOnly;
     // Mode selection:
-    //   useUnifiedTools — CSV or JSON loaded + no Python needed → unified CSV + YouTube tools
+    //   useUnifiedTools — CSV/JSON loaded or images attached + no Python needed → unified tools (incl. generateImage)
     //   useTools (CSV only) — CSV loaded, no JSON, no Python → legacy CSV-only path
     //   useCodeExecution — Python explicitly needed
     //   else — Google Search streaming
-    const hasData = !!sessionCsvRows || !!sessionJsonData;
+    const hasData = !!sessionCsvRows || !!sessionJsonData || images.length > 0;
     const useUnifiedTools = hasData && !wantPythonOnly && !wantCode;
     const useTools = !!sessionCsvRows && !sessionJsonData && !wantPythonOnly && !wantCode && !capturedCsv;
     const useCodeExecution = wantPythonOnly || wantCode;
@@ -440,7 +441,9 @@ ${sessionSummary}${slimCsvBlock}
     const jsonKeys = videosForJson.length && typeof videosForJson[0] === 'object'
       ? Object.keys(videosForJson[0]).join(', ')
       : 'videos';
-    const jsonPrefix = (sessionJsonData || capturedJson)
+    // Include JSON in prompt only when not sending images-only (so "make this a painting" with image doesn't see channel data)
+    const includeJsonInPrompt = (sessionJsonData || capturedJson) && (!!capturedJson || !images.length);
+    const jsonPrefix = includeJsonInPrompt
       ? `[JSON file: ${(capturedJson?.name || 'channel data')} | ${videosForJson.length} videos | fields: ${jsonKeys}]\n\n`
       : '';
 
@@ -465,6 +468,7 @@ ${sessionSummary}${slimCsvBlock}
     setImages([]);
     setCsvContext(null);
     setJsonContext(null);
+    // Keep sessionJsonData so follow-up messages (e.g. "plot views over time") still use unified tools
     setStreaming(true);
 
     // Store display text only — base64 is never persisted
@@ -520,7 +524,8 @@ ${sessionSummary}${slimCsvBlock}
           history,
           promptForGemini,
           executeUnified,
-          userNameContext
+          userNameContext,
+          imageParts
         );
         fullContent = answer;
         toolCharts = returnedCharts || [];
@@ -742,6 +747,45 @@ ${sessionSummary}${slimCsvBlock}
                 )}
               </div>
 
+              {/* Tool result media: video cards and generated images (same pattern as image gen — render right after content) */}
+              {m.role === 'model' && m.toolCalls?.map((tc, ti) => {
+                const r = tc.result;
+                const isPlayVideo = r && (r._playVideo === true || (r.url && (r.title != null || r.videoId)));
+                if (isPlayVideo) {
+                  return (
+                    <div key={`play-${ti}`} className="tool-result-media video-card-wrap">
+                      <VideoCard
+                        title={r.title}
+                        thumbnailUrl={r.thumbnailUrl}
+                        url={r.url}
+                      />
+                    </div>
+                  );
+                }
+                if (r?._generatedImage) {
+                  const src = `data:${r.mimeType || 'image/png'};base64,${r._generatedImage}`;
+                  return (
+                    <div key={`gen-${ti}`} className="tool-result-media generated-image-wrap">
+                      <img
+                        src={src}
+                        alt="Generated"
+                        className="generated-image"
+                        onClick={() => setLightboxImage(src)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && setLightboxImage(src)}
+                      />
+                      <div className="generated-image-actions">
+                        <a href={src} download="generated-image.png" className="generated-image-download">
+                          Download
+                        </a>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })}
+
               {/* Tool calls log */}
               {m.toolCalls?.length > 0 && (
                 <details className="tool-calls-details">
@@ -786,42 +830,6 @@ ${sessionSummary}${slimCsvBlock}
                 ) : null
               )}
 
-              {/* play_video and generateImage from tool calls */}
-              {m.toolCalls?.map((tc, ti) => {
-                const r = tc.result;
-                if (r?._playVideo) {
-                  return (
-                    <VideoCard
-                      key={`play-${ti}`}
-                      title={r.title}
-                      thumbnailUrl={r.thumbnailUrl}
-                      url={r.url}
-                    />
-                  );
-                }
-                if (r?._generatedImage) {
-                  const src = `data:${r.mimeType || 'image/png'};base64,${r._generatedImage}`;
-                  return (
-                    <div key={`gen-${ti}`} className="generated-image-wrap">
-                      <img
-                        src={src}
-                        alt="Generated"
-                        className="generated-image"
-                        onClick={() => setLightboxImage(src)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && setLightboxImage(src)}
-                      />
-                      <div className="generated-image-actions">
-                        <a href={src} download="generated-image.png" className="generated-image-download">
-                          Download
-                        </a>
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              })}
 
               {/* Search sources */}
               {m.grounding?.groundingChunks?.length > 0 && (
