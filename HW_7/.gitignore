@@ -1,0 +1,31 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---------------------------------------------------------------------------
+# Local-only: planning docs, agent briefs, Cursor notes (never push)
+# ---------------------------------------------------------------------------
+HOMEWORK_7_AGENT_EXECUTION_PLAN.md
+HOMEWORK_*_AGENT_EXECUTION_PLAN.md
+*AGENT_EXECUTION_PLAN*.md
+*_EXECUTION_PLAN.md
+*_agent_execution_plan.md
+
+# Assignment diagram omits this; keep captions locally or use --fetch-transcript
+lecture transcript file.txt
+
+projects/**/slide_images/**
+projects/**/audio/**
+projects/**/*.mp4
+projects/**/segments/
+
+*.tmp
+*.wav

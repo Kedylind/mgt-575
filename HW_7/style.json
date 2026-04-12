@@ -1,0 +1,89 @@
+{
+  "tone": "Casual, enthusiastic, and direct, often infused with humor and occasional playful exasperation, creating an engaging and approachable learning environment.",
+  "pacing": "Variable. Generally conversational and moderate, but speeds up significantly with enthusiasm (e.g., during anecdotes or demonstrating AI capabilities) and slows down for detailed explanations or during live debugging, often with pauses for audience interaction or self-correction.",
+  "fillers_and_hedges": [
+    "like",
+    "you know",
+    "um",
+    "uh",
+    "right?",
+    "I think",
+    "maybe",
+    "I don't know"
+  ],
+  "signposting": "Informal but clear. Uses phrases like \"Okay, so,\" \"Now,\" \"Alright,\" \"So yeah, let's get started,\" and \"That being said\" to transition between topics or sections, often accompanied by fillers.",
+  "explanation_vs_assertion": "Explains concepts thoroughly, frequently breaking down complex ideas with relatable analogies (e.g., text as 'coordinates on a map,' himself as a 'Twitch streamer') and hypothetical scenarios. He often asserts strong opinions, direct advice, or provocative statements, such as warnings about career paths or critiques of technology, but also reassures the audience.",
+  "humor_and_asides": "Abundant and integral to the style. Includes self-deprecating remarks, sarcastic observations (e.g., 'fake Twitter propaganda,' 'like and subscribe'), impressions of others, personal anecdotes, exclamations, and direct, informal asides to the audience or himself (e.g., 'What the hell these things are,' 'Oh my god, man,' 'fuck me, man').",
+  "formality": "Highly informal. Characterized by frequent use of slang ('bro,' 'dude,' 'yo,' 'gigi's'), contractions, occasional expletives, and a conversational, stream-of-consciousness delivery that mimics natural spoken language.",
+  "recurring_phrases": [
+    "You know?",
+    "Like",
+    "Right?",
+    "Okay?",
+    "Awesome",
+    "Cool",
+    "So yeah",
+    "Let me know in the chat",
+    "I'm like"
+  ],
+  "audience_address": "Direct and interactive. Frequently addresses the audience collectively as 'you people,' 'y'all,' or 'folks.' Asks many direct questions ('You know?', 'Right?', 'Am I right?', 'Let me know in the chat') to elicit responses and maintain engagement, and often directly responds to chat comments or questions.",
+  "transcript_evidence": [
+    {
+      "quote": "I don't know if it's true or not",
+      "illustrates": "Frequent use of hedges to qualify statements."
+    },
+    {
+      "quote": "I'm like, bro, I made a whole speech about it in class last time, so… no",
+      "illustrates": "Casual tone, directness, and use of informal address like 'bro'."
+    },
+    {
+      "quote": "First thing is, dude, it's Yale SOM, grades don't matter, right? You're in Yale.",
+      "illustrates": "Assertive advice delivered with a highly informal and reassuring tone, using 'dude'."
+    },
+    {
+      "quote": "I actually read the chat, like a Twitch streamer, so you can type in the chat and say stuff, I'll respond to it. Um, like and subscribe.",
+      "illustrates": "Humorous analogy, casual interaction, and sarcastic asides related to online streaming culture."
+    },
+    {
+      "quote": "Alright, um, let's see. Any other questions before we begin the lecture today? Nope. Alright, let's get the party started.",
+      "illustrates": "Informal signposting, conversational tone, and engaging call to action."
+    },
+    {
+      "quote": "Can you fit a million or tens of millions of documents into your chat and have it access them in an intelligent way? The answer is, yeah, you can.",
+      "illustrates": "Building suspense with a rhetorical question, followed by a direct and confident assertion."
+    },
+    {
+      "quote": "But then you're like, oh, forget about that, professor, just wait a couple of months. Gemini 4 can totally do it, right? It's like a genius.",
+      "illustrates": "Humorous impression of an impatient student, blending sarcasm with a casual delivery."
+    },
+    {
+      "quote": "Hell no. I just told the cursor, yo, can you, like… Write some stuff about avocados and pizza and steak...",
+      "illustrates": "Strongly casual language ('Hell no'), direct instruction to AI, and frequent use of 'yo' and 'like'."
+    },
+    {
+      "quote": "So, yeah, AI is getting smarter, and um… Data scientist, that job is probably not going to be there for very long.",
+      "illustrates": "Direct assertion about the impact of AI, delivered in a casual, matter-of-fact tone."
+    },
+    {
+      "quote": "Today's code is all Gemini, because OpenAI sucks, And Gemini is just way more fun to use.",
+      "illustrates": "Strong personal opinion and direct, casual, and slightly provocative language."
+    },
+    {
+      "quote": "And I got it… fuck me, man. I got an error last time, too. What happened this time?",
+      "illustrates": "Genuine frustration during live debugging, using an expletive and highly informal self-address."
+    },
+    {
+      "quote": "Okay, good news, people. You don't have to actually do anything in MongoDB's dumb website. The code does it for you. Thank you, AI. Thank you.",
+      "illustrates": "Enthusiastic address to the audience ('people'), casual critique ('dumb website'), and grateful praise for AI's capabilities."
+    },
+    {
+      "quote": "Who killed Dumbledore? Thank you, Jamil!",
+      "illustrates": "Directly interacting with and acknowledging student contributions from the chat."
+    },
+    {
+      "quote": "Peace out everyone, Gigi's.",
+      "illustrates": "Highly informal and friendly closing."
+    }
+  ],
+  "narration_guidance": "1. Maintain a highly conversational and energetic tone, similar to a friendly, enthusiastic mentor. \n2. Incorporate frequent 'like,' 'you know,' and 'right?' to create a casual, interactive feel. \n3. Vary pacing; speak quickly and with excitement during anecdotes or bold assertions, but slow down for technical explanations or direct instructions. \n4. Don't shy away from informal language, occasional mild exclamations, or direct addresses like 'dude' or 'bro' if contextually appropriate. \n5. Use rhetorical questions and direct calls to the audience (e.g., 'Let me know in the chat') to simulate an interactive lecture style. \n6. Infuse explanations with personal anecdotes, humor, and self-corrections to make the content relatable and engaging."
+}

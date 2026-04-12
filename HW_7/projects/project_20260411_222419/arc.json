@@ -1,0 +1,31 @@
+{
+  "acts": [
+    {
+      "name": "Introduction: The Challenge and Our Agentic Solution",
+      "slide_range": "1-5",
+      "purpose": "To hook the audience with the idea of AI-generated screenplays, establish the significant challenge of generating long, coherent documents in a 'one-shot' manner, and introduce the hierarchical, agentic 'Screenplay Flow' as the proposed architectural solution."
+    },
+    {
+      "name": "Deconstructing the Screenplay Flow: Agent by Agent",
+      "slide_range": "6-15",
+      "purpose": "To provide a detailed, step-by-step examination of each specialized AI agent (Premise, Arc, Sequence, Scene) within the core screenplay generation flow, illustrating their specific functions, inputs, and structured JSON outputs as they progressively build a coherent narrative."
+    },
+    {
+      "name": "Enhancing and Generalizing the Agentic Architecture",
+      "slide_range": "16-17",
+      "purpose": "To demonstrate how 'Enhancement Agents' can be integrated for iterative refinement of intermediate outputs, thereby improving the quality of the generated content, and to illustrate the broad generalizability of this hierarchical, agentic architecture to diverse document types beyond screenplays."
+    },
+    {
+      "name": "Hands-On Application: Coding Our Agentic AI",
+      "slide_range": "18-18",
+      "purpose": "To engage the audience in a practical coding session where they will apply the learned concepts to generate a screenplay, integrate enhancement agents, and adapt the AI for different document types, reinforcing theoretical understanding with practical implementation."
+    }
+  ],
+  "throughline": "The lecture begins by identifying the challenge of one-shot long-form AI document generation, then introduces a hierarchical, agentic architecture exemplified by a screenplay flow, details how specialized agents produce structured outputs, and finally demonstrates how this modular system can be enhanced and generalized for diverse document types through practical application.",
+  "transitions": [
+    "We've established the challenge of long-form generation and introduced our hierarchical, agentic solution. Now, let's unpack each component of this 'Screenplay Flow' to see how it works in detail, starting with the Premise Agent.",
+    "We've seen how our agents construct a screenplay step-by-step. But how can we refine these outputs, and is this powerful architecture limited to just screenplays?",
+    "We've explored the theoretical foundations, seen the power of enhancement, and understood the vast applicability of this agentic system. Now, let's move from theory to practice in our coding session."
+  ],
+  "pacing_notes": "The initial slides (1-5) establish the context, problem, and high-level solution at a moderate pace. The subsequent detailed explanation of each core agent and their JSON outputs (slides 6-15) is dense and requires close attention. The pace then becomes moderate again (slides 16-17) as new concepts like enhancement and generalization are introduced. The final slide (18) transitions into a highly interactive and practical coding session."
+}
